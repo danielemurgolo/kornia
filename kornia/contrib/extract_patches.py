@@ -344,4 +344,14 @@ def extract_tensor_patches(
         padding = cast(Tuple[int, int, int, int], pad_horz + pad_vert)
         input = pad(input, padding)
 
-    return _extract_tensor_patchesnd(input, _pair(window_size), _pair(stride))
+    B, C, H, W = input.shape
+    window_size = _pair(window_size)
+    stride = _pair(stride)
+    
+    if window_size[0] > H or window_size[1] > W:
+        raise ValueError("Window size is bigger than the input size")
+
+    # window shape: (window_size[0] * window_size[1] * C, B * H_out * W_out)
+    window = input.unfold(2, window_size[0], stride[0]).unfold(3, window_size[1], stride[1])
+    window = window.contiguous().view(B, C, -1, window_size[0], window_size[1])
+    return window.permute(0, 2, 1, 3, 4).contiguous()
